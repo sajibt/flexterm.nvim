@@ -7,11 +7,26 @@ M.config = {
         bottom = { height = 0.3 },                -- Proportion for bottom terminal
     },
     border = "rounded",                           -- Border style [none,single,double,rounded,solid]
-    cmd = vim.o.shell                             -- Use a string, not a table
+    cmd = vim.o.shell,
 }
+
+-- Function to define the border highlight
+local function set_border_highlight()
+    vim.api.nvim_set_hl(0, "CustomTerminalBorder", { fg = "#b08968", bg = "none" })
+end
 
 M.setup = function(user_config)
     M.config = vim.tbl_deep_extend("force", M.config, user_config or {})
+
+    -- Set the initial highlight
+    set_border_highlight()
+
+    -- Reapply highlight after colorscheme changes
+    vim.api.nvim_create_autocmd("ColorScheme", {
+        callback = function()
+            set_border_highlight()
+        end,
+    })
 end
 
 -- Calculate dimensions for terminal
@@ -39,6 +54,17 @@ local function calculate_dimensions()
     end
 end
 
+-- Automatically resize the terminal when the window is resized
+local function resize_terminal()
+    if M.win and vim.api.nvim_win_is_valid(M.win) then
+        vim.api.nvim_win_set_config(M.win, calculate_dimensions())
+    end
+end
+
+vim.api.nvim_create_autocmd("VimResized", {
+    callback = resize_terminal,
+})
+
 M.toggleterm = function()
     if M.win and vim.api.nvim_win_is_valid(M.win) then
         -- If the terminal window is open, close it
@@ -49,21 +75,20 @@ M.toggleterm = function()
         if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then
             -- Create a new buffer if it doesn't exist or is invalid
             M.buf = vim.api.nvim_create_buf(false, false)
-
-            -- Safely set buffer options
-            vim.bo[M.buf].buftype = "nofile" -- Set buffer type to "nofile"
-            vim.bo[M.buf].swapfile = false   -- Disable swapfile
-            vim.bo[M.buf].bufhidden = "hide" -- Hide buffer when closed
+            vim.bo[M.buf].buftype = "nofile"
+            vim.bo[M.buf].swapfile = false
+            vim.bo[M.buf].bufhidden = "hide"
         end
 
         -- Open a new window with the appropriate dimensions
         local win_opts = calculate_dimensions()
         M.win = vim.api.nvim_open_win(M.buf, true, win_opts)
-        vim.wo[M.win].winblend = 0 -- Set transparency for the window
+
+        -- Apply internal border highlight using a modern method
+        vim.wo[M.win].winhighlight = "FloatBorder:CustomTerminalBorder"
 
         -- If the terminal was not previously started (it's a fresh toggle)
         if not M.terminal_started then
-            -- Start a new terminal session if the terminal session was not started before
             vim.fn.termopen(M.config.cmd, {
                 on_exit = function()
                     -- Reset buffer and window after exiting
@@ -73,13 +98,13 @@ M.toggleterm = function()
                     M.buf = nil
                     M.win = nil
                     M.terminal_started = false
-                end
+                end,
             })
             M.terminal_started = true
         end
+
         vim.cmd("startinsert")
     end
 end
 
 return M
-
