@@ -6,14 +6,15 @@ M.config = {
         floating = { width = 0.8, height = 0.8 }, -- Proportion for floating terminal
         bottom = { height = 0.3 },                -- Proportion for bottom terminal
     },
-    border = "rounded",                           -- Border style[none,single,double,rounded,solid]
-    cmd = { vim.o.shell }
+    border = "rounded",                           -- Border style [none,single,double,rounded,solid]
+    cmd = vim.o.shell                             -- Use a string, not a table
 }
 
 M.setup = function(user_config)
     M.config = vim.tbl_deep_extend("force", M.config, user_config or {})
 end
 
+-- Calculate dimensions for terminal
 local function calculate_dimensions()
     if M.config.mode == "floating" then
         return {
@@ -39,24 +40,46 @@ local function calculate_dimensions()
 end
 
 M.toggleterm = function()
-    if not vim.api.nvim_buf_is_valid(M.buf or -1) then
-        M.buf = vim.api.nvim_create_buf(false, false)
-    end
+    if M.win and vim.api.nvim_win_is_valid(M.win) then
+        -- If the terminal window is open, close it
+        vim.api.nvim_win_close(M.win, true)
+        M.win = nil
+    else
+        -- If the terminal window is not open, create/reuse buffer and open window
+        if not M.buf or not vim.api.nvim_buf_is_valid(M.buf) then
+            -- Create a new buffer if it doesn't exist or is invalid
+            M.buf = vim.api.nvim_create_buf(false, false)
 
-    if not M.win or not vim.api.nvim_win_is_valid(M.win) then
+            -- Safely set buffer options
+            vim.bo[M.buf].buftype = "nofile" -- Set buffer type to "nofile"
+            vim.bo[M.buf].swapfile = false   -- Disable swapfile
+            vim.bo[M.buf].bufhidden = "hide" -- Hide buffer when closed
+        end
+
+        -- Open a new window with the appropriate dimensions
         local win_opts = calculate_dimensions()
         M.win = vim.api.nvim_open_win(M.buf, true, win_opts)
-        vim.fn.termopen(M.config.cmd)
-        vim.cmd("startinsert")
-    else
-        if vim.api.nvim_win_is_valid(M.win) then
-            vim.api.nvim_win_close(M.win, true)
-        else
-            local win_opts = calculate_dimensions()
-            M.win = vim.api.nvim_open_win(M.buf, true, win_opts)
-            vim.cmd("startinsert")
+        vim.wo[M.win].winblend = 0 -- Set transparency for the window
+
+        -- If the terminal was not previously started (it's a fresh toggle)
+        if not M.terminal_started then
+            -- Start a new terminal session if the terminal session was not started before
+            vim.fn.termopen(M.config.cmd, {
+                on_exit = function()
+                    -- Reset buffer and window after exiting
+                    if vim.api.nvim_buf_is_valid(M.buf) then
+                        vim.api.nvim_buf_delete(M.buf, { force = true })
+                    end
+                    M.buf = nil
+                    M.win = nil
+                    M.terminal_started = false
+                end
+            })
+            M.terminal_started = true
         end
+        vim.cmd("startinsert")
     end
 end
 
 return M
+
