@@ -6,27 +6,12 @@ M.config = {
         floating = { width = 0.8, height = 0.8 }, -- Proportion for floating terminal
         bottom = { height = 0.3 },                -- Proportion for bottom terminal
     },
-    border = "rounded",                           -- Border style [none,single,double,rounded,solid]
+    border = "rounded",                           -- Border style [none, single, double, rounded, solid]
     cmd = vim.o.shell,
 }
 
--- Function to define the border highlight
-local function set_border_highlight()
-    vim.api.nvim_set_hl(0, "CustomTerminalBorder", { fg = "#b08968", bg = "none" })
-end
-
 M.setup = function(user_config)
     M.config = vim.tbl_deep_extend("force", M.config, user_config or {})
-
-    -- Set the initial highlight
-    set_border_highlight()
-
-    -- Reapply highlight after colorscheme changes
-    vim.api.nvim_create_autocmd("ColorScheme", {
-        callback = function()
-            set_border_highlight()
-        end,
-    })
 end
 
 -- Calculate dimensions for terminal
@@ -38,8 +23,8 @@ local function calculate_dimensions()
             height = math.floor(vim.o.lines * M.config.dimensions.floating.height),
             col = math.floor((vim.o.columns - vim.o.columns * M.config.dimensions.floating.width) / 2),
             row = math.floor((vim.o.lines - vim.o.lines * M.config.dimensions.floating.height) / 2),
-            style = "minimal",
-            border = M.config.border,
+            style = "minimal",        -- Keep the style minimal, no color
+            border = M.config.border, -- Apply the border style (rounded, solid, etc.)
         }
     else
         return {
@@ -48,8 +33,8 @@ local function calculate_dimensions()
             height = math.floor(vim.o.lines * M.config.dimensions.bottom.height),
             col = 0,
             row = vim.o.lines - math.floor(vim.o.lines * M.config.dimensions.bottom.height),
-            style = "minimal",
-            border = M.config.border,
+            style = "minimal",        -- Keep the style minimal, no color
+            border = M.config.border, -- Apply the border style (rounded, solid, etc.)
         }
     end
 end
@@ -84,10 +69,7 @@ M.toggleterm = function()
         local win_opts = calculate_dimensions()
         M.win = vim.api.nvim_open_win(M.buf, true, win_opts)
 
-        -- Apply internal border highlight using a modern method
-        vim.wo[M.win].winhighlight = "FloatBorder:CustomTerminalBorder"
-
-        -- If the terminal was not previously started (it's a fresh toggle)
+        -- Start terminal in insert mode
         if not M.terminal_started then
             vim.fn.termopen(M.config.cmd, {
                 on_exit = function()
@@ -108,3 +90,4 @@ M.toggleterm = function()
 end
 
 return M
+
