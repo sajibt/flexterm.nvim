@@ -59,4 +59,4 @@ M.toggleterm = function()
     end
 end
 
-M.toggleterm()
+return M
