@@ -19,8 +19,8 @@ require("lazy").setup({
             })
             
             -- Set up keybindings for toggling the terminal
-            vim.keymap.set('n', '<C-j>', flexterm.toggleterm, { desc = "Toggle Terminal" })
-            vim.keymap.set('t', '<C-j>', flexterm.toggleterm, { desc = "Toggle Terminal" })
+            vim.keymap.set('n', '<Leader>t', flexterm.toggleterm, { desc = "Toggle FlexTerm" })
+            vim.keymap.set('t', '<Leader>t', flexterm.toggleterm, { desc = "Toggle FlexTerm" })
         end,
     }
 })
